@@ -11,40 +11,56 @@ namespace html;
 
 class Tag extends HtmlObject
 {
-    /** @var array objects */
-    private $objects = [];
-
-    /** @var  string tagName */
-    protected $tagName;
-
-    /** @var string innerText */
-    protected $innerText = '';
-
-    /** @var array options */
-    protected $options = [];
-
-    /** @var  String out */
-    protected $out;
-
-
     /**
      * Tag constructor.
      * @param String $tagName
      * @param array $options
      */
-    public function __construct(String $tagName = 'div', $options = [], String $innertext = '')
+    public function __construct( $tagName = 'div', $options = [], $inner = [])
     {
         $this->tagName = $tagName;
         $this->options = $options;
-        $this->innerText = $innertext;
+        $this->inner = $inner;
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString()
+    {
+        if ($this->parseInner()) {
+            return $this->getOpenTag() . $this->out . $this->getCloseTag();
+        } else
+            return "";
+    }
+
+    /**
+     * @return bool
+     */
+    public function parseInner()
+    {
+        if (! empty($this->inner)) {
+            $this->inner = (array)$this->inner;
+            foreach ($this->inner as $innerItem) {
+                if (is_string($innerItem)) {
+                    $this->out .= $innerItem;
+                } else if ($innerItem instanceof HtmlObject) {
+                    $this->out .= $innerItem->__toString();
+                }
+            }
+            return true;
+        } else
+            return false;
     }
 
     /**
      * @param $innerText
      */
-    public function setInnerText($innerText) : void
+    public function setInner($inner) : void
     {
-        $this->innerText = $innerText;
+        if (! is_null($this->getCompositeTag())) {
+            $this->inner = array_merge($this->inner, $inner);
+        }
     }
 
     /**
@@ -60,16 +76,14 @@ class Tag extends HtmlObject
      */
     public function append(HtmlObject $object) : void
     {
-        $this->objects[] = $object;
+        if (! is_null($this->getCompositeTag())) {
+            $this->inner[] = $object;
+        }
     }
 
     public function out()
     {
-        $this->open();
-        foreach ($this->objects as $object) {
-            $object->out();
-        }
-        $this->close();
+
     }
 
     /**
@@ -77,11 +91,7 @@ class Tag extends HtmlObject
      */
     protected function getOpenTag()
     {
-        $options = '';
-        foreach ($this->options as $option => $value) {
-            $options .= " \"{$option}\"=\"$value\"";
-        }
-        return "<{$this->tagName}{$options}>";
+        return "<{$this->tagName}{$this->getOptions()}>";
     }
 
     /**
